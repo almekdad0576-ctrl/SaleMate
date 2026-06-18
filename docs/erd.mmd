@@ -1,0 +1,28 @@
+erDiagram
+    PRODUCT {
+        int product_id PK
+        string name
+        int quantity_in_stock
+        decimal buying_price
+        decimal selling_price
+    }
+
+    ORDER {
+        int order_id PK
+        date order_date
+        string order_type "purchase or sale"
+        decimal total_amount
+        string status "pending, completed"
+    }
+
+    ORDER_ITEM {
+        int order_item_id PK
+        int order_id FK
+        int product_id FK
+        int quantity
+        decimal unit_price
+        decimal line_total
+    }
+
+    PRODUCT ||--o{ ORDER_ITEM : "appears in"
+    ORDER ||--o{ ORDER_ITEM : "contains"

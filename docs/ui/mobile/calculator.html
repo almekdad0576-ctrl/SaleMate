@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Order Calculator</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="app-container">
+    <!-- Header -->
+    <header class="calc-header">
+      <span>🧮 Order Calculator</span>
+      <button class="logout-btn" onclick="window.location.href='login.html'">Logout</button>
+    </header>
+
+    <!-- Calculator Board -->
+    <div class="calc-board">
+      <!-- Search Box -->
+      <div class="search-box">
+        <input type="text" id="searchInput" placeholder="Search product by name or price..." autocomplete="off"
+               oninput="filterProducts()" onfocus="showSuggestions()" onblur="hideSuggestions()">
+        <div class="product-suggestions" id="suggestions"></div>
+      </div>
+
+      <!-- Quantity and Price -->
+      <div class="input-row">
+        <label for="quantity">Qty:</label>
+        <input type="number" id="quantity" class="quantity-input" value="1" min="1" step="1">
+        <label for="price">Price:</label>
+        <input type="number" id="price" class="price-input" value="0.00" step="0.01" min="0">
+      </div>
+
+      <!-- Add to Order -->
+      <button class="add-btn" id="addToOrderBtn" onclick="addItem()">➕ Add to Order</button>
+
+      <!-- Action Buttons (Complete / Reset) -->
+      <div class="action-buttons">
+        <button class="complete-order-btn" id="completeOrderBtn" onclick="completeOrder()" disabled>✅ Complete Order</button>
+        <button class="reset-btn" id="resetBtn" onclick="resetOrder()">🔄 Reset</button>
+      </div>
+    </div>
+
+    <!-- Floating Summary Box -->
+    <div class="floating-summary" id="floatingSummary" onclick="openOrderModal()">
+      <div class="summary-total">
+        <div>Total Qty</div>
+        <div class="summary-values" id="totalQtyDisplay">0</div>
+      </div>
+      <div class="summary-total">
+        <div>Total Price</div>
+        <div class="summary-values" id="totalPriceDisplay">0.00</div>
+      </div>
+    </div>
+
+    <!-- Order Items Modal -->
+    <div class="modal" id="orderModal">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h3>📋 Order Items</h3>
+          <button class="close-modal" onclick="closeOrderModal()">✕</button>
+        </div>
+        <div id="orderItemsContainer">
+          <!-- dynamically filled -->
+        </div>
+        <div class="modal-footer">
+          <button class="save-changes-btn" onclick="applyItemChanges()">Save Changes</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Mock product catalog (matches earlier ERD)
+    const productCatalog = [
+      { id: 1, name: "Widget A", selling_price: 15.50 },
+      { id: 2, name: "Gadget B", selling_price: 42.00 },
+      { id: 3, name: "Doodad C", selling_price: 7.25 },
+      { id: 4, name: "Thingamajig", selling_price: 99.90 },
+      { id: 5, name: "Contraption", selling_price: 120.00 },
+      { id: 6, name: "Module X", selling_price: 55.55 },
+    ];
+
+    // Current order items (stored as objects: { productId, name, quantity, price })
+    let orderItems = [];
+
+    // DOM elements
+    const searchInput = document.getElementById('searchInput');
+    const suggestionsDiv = document.getElementById('suggestions');
+    const quantityInput = document.getElementById('quantity');
+    const priceInput = document.getElementById('price');
+    const addBtn = document.getElementById('addToOrderBtn');
+    const completeBtn = document.getElementById('completeOrderBtn');
+    const floatingSummary = document.getElementById('floatingSummary');
+    const totalQtyDisplay = document.getElementById('totalQtyDisplay');
+    const totalPriceDisplay = document.getElementById('totalPriceDisplay');
+    const orderItemsContainer = document.getElementById('orderItemsContainer');
+    const orderModal = document.getElementById('orderModal');
+
+    // Flag to prevent blur hiding suggestions when clicking on them
+    let isMouseOverSuggestions = false;
+
+    // --- Search & Product Selection ---
+    function filterProducts() {
+      const query = searchInput.value.trim().toLowerCase();
+      if (query === '') {
+        suggestionsDiv.innerHTML = '';
+        suggestionsDiv.classList.remove('active');
+        return;
+      }
+      const filtered = productCatalog.filter(p => 
+        p.name.toLowerCase().includes(query) || p.selling_price.toString().includes(query)
+      );
+      renderSuggestions(filtered);
+    }
+
+    function renderSuggestions(products) {
+      if (products.length === 0) {
+        suggestionsDiv.innerHTML = '<div class="product-suggestion-item" style="color:#888;">No product found</div>';
+      } else {
+        suggestionsDiv.innerHTML = products.map(p => `
+          <div class="product-suggestion-item" 
+               onmousedown="selectProduct(${p.id}, '${p.name}', ${p.selling_price})"
+               onmouseenter="isMouseOverSuggestions=true" 
+               onmouseleave="isMouseOverSuggestions=false">
+            <span>${p.name}</span>
+            <span class="price">$${p.selling_price.toFixed(2)}</span>
+          </div>
+        `).join('');
+      }
+      suggestionsDiv.classList.add('active');
+    }
+
+    function showSuggestions() {
+      if (searchInput.value.trim() !== '' && suggestionsDiv.innerHTML !== '') {
+        suggestionsDiv.classList.add('active');
+      }
+    }
+
+    function hideSuggestions() {
+      setTimeout(() => {
+        if (!isMouseOverSuggestions) {
+          suggestionsDiv.classList.remove('active');
+        }
+      }, 150);
+    }
+
+    function selectProduct(id, name, price) {
+      searchInput.value = name;
+      priceInput.value = price.toFixed(2);
+      // Store selected product for adding (we use catalog lookup)
+      searchInput.dataset.productId = id;
+      suggestionsDiv.classList.remove('active');
+      quantityInput.focus();
+    }
+
+    // --- Order Item Management ---
+    function addItem() {
+      const productId = searchInput.dataset.productId || null;
+      let productName = searchInput.value.trim();
+      const quantity = parseInt(quantityInput.value) || 1;
+      const price = parseFloat(priceInput.value) || 0;
+
+      if (!productName || price <= 0 || quantity <= 0) {
+        alert('Please select a product (or enter name) and set valid price/quantity.');
+        return;
+      }
+
+      // If productId exists, ensure name matches catalog (use catalog name)
+      if (productId) {
+        const prod = productCatalog.find(p => p.id == productId);
+        if (prod) productName = prod.name;
+      }
+
+      orderItems.push({
+        productId: productId || null,
+        name: productName,
+        quantity: quantity,
+        price: price
+      });
+
+      updateOrderSummary();
+      clearInputs();
+    }
+
+    function clearInputs() {
+      searchInput.value = '';
+      delete searchInput.dataset.productId;
+      quantityInput.value = 1;
+      priceInput.value = '0.00';
+      suggestionsDiv.innerHTML = '';
+      suggestionsDiv.classList.remove('active');
+    }
+
+    function updateOrderSummary() {
+      const totalQty = orderItems.reduce((sum, item) => sum + item.quantity, 0);
+      const totalPrice = orderItems.reduce((sum, item) => sum + (item.quantity * item.price), 0);
+      totalQtyDisplay.textContent = totalQty;
+      totalPriceDisplay.textContent = totalPrice.toFixed(2);
+      // Enable/disable complete button
+      completeBtn.disabled = orderItems.length === 0;
+    }
+
+    function resetOrder() {
+      if (orderItems.length === 0) return;
+      if (confirm('Clear all order items?')) {
+        orderItems = [];
+        updateOrderSummary();
+        closeOrderModal();
+      }
+    }
+
+    function completeOrder() {
+      if (orderItems.length === 0) return;
+      alert(`Order completed!\nTotal items: ${orderItems.reduce((s,i)=>s+i.quantity,0)}\nTotal price: $${orderItems.reduce((s,i)=>s+(i.quantity*i.price),0).toFixed(2)}`);
+      orderItems = [];
+      updateOrderSummary();
+      closeOrderModal();
+    }
+
+    // --- Modal for Editing Items ---
+    function openOrderModal() {
+      if (orderItems.length === 0) {
+        orderItemsContainer.innerHTML = '<div class="empty-order-msg">No items in order. Add some first.</div>';
+      } else {
+        renderOrderItemsModal();
+      }
+      orderModal.classList.add('active');
+    }
+
+    function closeOrderModal() {
+      orderModal.classList.remove('active');
+      // Discard any unsaved inline edits? we'll just re-render from orderItems later; safe.
+    }
+
+    function renderOrderItemsModal() {
+      orderItemsContainer.innerHTML = orderItems.map((item, index) => `
+        <div class="order-item" data-index="${index}">
+          <span class="item-name">${item.name}</span>
+          <input type="number" class="modal-qty" value="${item.quantity}" min="1" step="1" data-index="${index}" data-field="quantity">
+          <span>×</span>
+          <input type="number" class="modal-price" value="${item.price.toFixed(2)}" step="0.01" min="0" data-index="${index}" data-field="price">
+          <button class="delete-item" onclick="deleteOrderItem(${index})">🗑️</button>
+        </div>
+      `).join('');
+    }
+
+    function applyItemChanges() {
+      const qtyInputs = document.querySelectorAll('.modal-qty');
+      const priceInputs = document.querySelectorAll('.modal-price');
+      qtyInputs.forEach(inp => {
+        const idx = parseInt(inp.dataset.index);
+        const newQty = parseInt(inp.value) || 1;
+        orderItems[idx].quantity = newQty;
+      });
+      priceInputs.forEach(inp => {
+        const idx = parseInt(inp.dataset.index);
+        const newPrice = parseFloat(inp.value) || 0;
+        orderItems[idx].price = newPrice;
+      });
+      updateOrderSummary();
+      closeOrderModal();
+    }
+
+    function deleteOrderItem(index) {
+      orderItems.splice(index, 1);
+      if (orderItems.length === 0) {
+        orderItemsContainer.innerHTML = '<div class="empty-order-msg">All items removed.</div>';
+      } else {
+        renderOrderItemsModal();
+      }
+      updateOrderSummary();
+      // If modal becomes empty while open, show message and maybe close? we'll keep modal open.
+      if (orderItems.length === 0) {
+        orderItemsContainer.innerHTML = '<div class="empty-order-msg">No items left.</div>';
+      }
+    }
+
+    // Close modal when clicking outside content
+    orderModal.addEventListener('click', function(e) {
+      if (e.target === orderModal) closeOrderModal();
+    });
+  </script>
+</body>
+</html>

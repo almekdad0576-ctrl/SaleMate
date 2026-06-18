@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin Dashboard</title>
+  <link rel="stylesheet" href="dashboard.css">
+</head>
+<body>
+  <div class="dashboard-container">
+    <!-- Sidebar -->
+    <aside class="sidebar">
+      <div class="logo">📦 OrderCalc</div>
+      <nav>
+        <a href="dashboard.html" class="active">📊 Dashboard</a>
+        <a href="products.html">📋 Products</a>
+        <a href="#" onclick="window.location.href='login.html'">🚪 Logout</a>
+      </nav>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="main-content">
+      <header class="topbar">
+        <h2>Dashboard</h2>
+        <div class="user-info">Admin</div>
+      </header>
+      <div class="content-area">
+        <!-- Stats Cards -->
+        <div class="stats-grid">
+          <div class="stat-card">
+            <div class="stat-icon">📅</div>
+            <div class="stat-info">
+              <h3>Today's Orders</h3>
+              <div class="value" id="todaysOrders">12</div>
+            </div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon">💰</div>
+            <div class="stat-info">
+              <h3>Revenue Today</h3>
+              <div class="value" id="todaysRevenue">$1,245.80</div>
+            </div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon">📈</div>
+            <div class="stat-info">
+              <h3>Profit Today</h3>
+              <div class="value" id="todaysProfit">$487.30</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Action buttons -->
+        <div class="actions-row">
+          <button class="btn btn-primary" onclick="openQuickAddProduct()">➕ Add Product</button>
+          <a href="products.html" class="btn btn-secondary">📋 Manage Products</a>
+        </div>
+
+        <!-- Recent Orders Table -->
+        <h3 style="margin-bottom:15px;">Today's Orders</h3>
+        <table class="data-table" id="ordersTable">
+          <thead>
+            <tr>
+              <th>Order ID</th>
+              <th>Time</th>
+              <th>Items</th>
+              <th>Total</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            <!-- Dynamically filled by JS -->
+          </tbody>
+        </table>
+      </div>
+    </main>
+  </div>
+
+  <!-- Quick Add Product Modal -->
+  <div class="modal-overlay" id="quickProductModal">
+    <div class="modal">
+      <h3>Add New Product</h3>
+      <div class="form-group">
+        <label>Product Name</label>
+        <input type="text" id="quickProductName" placeholder="e.g., Super Widget">
+      </div>
+      <div class="form-group">
+        <label>Buying Price</label>
+        <input type="number" id="quickBuyingPrice" step="0.01" placeholder="0.00">
+      </div>
+      <div class="form-group">
+        <label>Selling Price</label>
+        <input type="number" id="quickSellingPrice" step="0.01" placeholder="0.00">
+      </div>
+      <div class="form-group">
+        <label>Initial Quantity</label>
+        <input type="number" id="quickQuantity" value="0" step="1" min="0">
+      </div>
+      <div class="modal-actions">
+        <button class="btn btn-secondary" onclick="closeQuickAddProduct()">Cancel</button>
+        <button class="btn btn-primary" onclick="saveQuickProduct()">Save Product</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Mock data: today's orders
+    const todaysOrdersData = [
+      { id: 101, time: '08:30 AM', items: 3, total: 126.50, status: 'Completed' },
+      { id: 102, time: '09:15 AM', items: 1, total: 42.00, status: 'Completed' },
+      { id: 103, time: '10:05 AM', items: 5, total: 299.90, status: 'Completed' },
+      { id: 104, time: '11:20 AM', items: 2, total: 84.00, status: 'Pending' },
+      { id: 105, time: '12:45 PM', items: 4, total: 193.40, status: 'Completed' },
+    ];
+
+    function renderTodaysOrders() {
+      const tbody = document.querySelector('#ordersTable tbody');
+      if (todaysOrdersData.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="5" class="empty-state">No orders today yet.</td></tr>';
+        return;
+      }
+      tbody.innerHTML = todaysOrdersData.map(order => `
+        <tr>
+          <td>#${order.id}</td>
+          <td>${order.time}</td>
+          <td>${order.items}</td>
+          <td>$${order.total.toFixed(2)}</td>
+          <td><span class="badge ${order.status === 'Completed' ? 'badge-success' : 'badge-warning'}">${order.status}</span></td>
+        </tr>
+      `).join('');
+    }
+
+    // Update stats (static for demo, but could be computed)
+    function updateStats() {
+      document.getElementById('todaysOrders').textContent = todaysOrdersData.length;
+      const revenue = todaysOrdersData.reduce((sum, o) => sum + o.total, 0);
+      document.getElementById('todaysRevenue').textContent = '$' + revenue.toFixed(2);
+      // Profit is hardcoded for demo, but could be derived from order items profit.
+      document.getElementById('todaysProfit').textContent = '$487.30';
+    }
+
+    // Quick Add Product (mocked: could store in localStorage or global array)
+    function openQuickAddProduct() {
+      document.getElementById('quickProductModal').classList.add('active');
+    }
+    function closeQuickAddProduct() {
+      document.getElementById('quickProductModal').classList.remove('active');
+    }
+    function saveQuickProduct() {
+      const name = document.getElementById('quickProductName').value.trim();
+      const buying = parseFloat(document.getElementById('quickBuyingPrice').value);
+      const selling = parseFloat(document.getElementById('quickSellingPrice').value);
+      const qty = parseInt(document.getElementById('quickQuantity').value) || 0;
+      if (!name || isNaN(buying) || isNaN(selling)) {
+        alert('Please fill all price fields and name.');
+        return;
+      }
+      // In a real app, send to server. For demo, we'll store in localStorage to share with products page.
+      const products = JSON.parse(localStorage.getItem('adminProducts') || '[]');
+      const newId = products.length ? Math.max(...products.map(p=>p.id)) + 1 : 1;
+      products.push({ id: newId, name, buying_price: buying, selling_price: selling, quantity_in_stock: qty });
+      localStorage.setItem('adminProducts', JSON.stringify(products));
+      alert('Product added! You can manage it in Products page.');
+      closeQuickAddProduct();
+      // Clear fields
+      document.getElementById('quickProductName').value = '';
+      document.getElementById('quickBuyingPrice').value = '';
+      document.getElementById('quickSellingPrice').value = '';
+      document.getElementById('quickQuantity').value = '0';
+    }
+
+    // Initialize
+    renderTodaysOrders();
+    updateStats();
+
+    // Close modal on overlay click
+    document.getElementById('quickProductModal').addEventListener('click', function(e) {
+      if (e.target === this) closeQuickAddProduct();
+    });
+  </script>
+</body>
+</html>
