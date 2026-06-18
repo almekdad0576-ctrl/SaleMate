@@ -1,6 +1,14 @@
 erDiagram
+    USER {
+        int id PK
+        string name
+        string email
+        string password
+        string role "super_admin or admin"
+    }
+
     PRODUCT {
-        int product_id PK
+        int id PK
         string name
         int quantity_in_stock
         decimal buying_price
@@ -8,21 +16,22 @@ erDiagram
     }
 
     ORDER {
-        int order_id PK
+        int id PK
         date order_date
         string order_type "purchase or sale"
-        decimal total_amount
+        int total_amount
+        decimal total_price
         string status "pending, completed"
     }
 
     ORDER_ITEM {
-        int order_item_id PK
+        int id PK
         int order_id FK
         int product_id FK
-        int quantity
-        decimal unit_price
-        decimal line_total
+        decimal price
+        int amount
     }
 
+    USER ||--o{ ORDER : "creates"
     PRODUCT ||--o{ ORDER_ITEM : "appears in"
     ORDER ||--o{ ORDER_ITEM : "contains"
