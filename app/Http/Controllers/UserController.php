@@ -23,6 +23,7 @@ class UserController extends Controller
 
     public function login(LoginRequest $request): JsonResponse
     {
+        info('Login request received for email: ' . $request->input('email'));
         $login = $this->service->login($request->validated());
 
         return $this->respond(true, 'Login successful.', [
