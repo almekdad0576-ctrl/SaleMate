@@ -18,8 +18,10 @@ class UserService
         ];
 
         $guard = Auth::guard('api');
-
-        if (! $token = $guard->attempt($credentials)) {
+        
+        $token = $guard->attempt($credentials);
+        
+        if (! $token) {
             throw ValidationException::withMessages([
                 'email' => ['The provided credentials are incorrect.'],
             ]);
